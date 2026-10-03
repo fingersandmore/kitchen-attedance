@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0e4a45">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Kitchen Attendance</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --brand: #0e4a45; --brand-deep: #08302c; --accent: #f0b03c; --ink: #14231f; --paper: #fff; --bg: #edf2f1;
+      --ok: #1d8a4e; --out: #0f5f8c; --warn: #b7791f; --bad: #b3261e;
+      --font: 'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--brand-deep); color: #fff; font-family: var(--font); overflow: hidden; user-select: none; -webkit-user-select: none; }
+    .hidden { display: none !important; }
+
+    /* ---------- main scanner screen ---------- */
+    #app { height: 100%; display: flex; flex-direction: column; background: radial-gradient(120% 80% at 50% 0%, #135c55 0%, var(--brand) 45%, var(--brand-deep) 100%); }
+    .head { display: flex; align-items: center; gap: 14px; padding: max(14px, env(safe-area-inset-top)) 22px 6px; }
+    .mark { flex: none; width: 52px; height: 52px; border: 2.5px solid var(--accent); border-radius: 14px; display: grid; place-items: center; color: var(--accent); font-weight: 900; font-size: 17px; }
+    .brand { font-size: clamp(18px, 2.6vw, 26px); font-weight: 800; letter-spacing: .04em; line-height: 1.1; }
+    .brand small { display: block; color: var(--accent); font-size: .62em; letter-spacing: .2em; margin-top: 4px; }
+    .clock { margin-left: auto; text-align: right; font-variant-numeric: tabular-nums; }
+    .clock b { display: block; font-size: clamp(22px, 3.4vw, 34px); font-weight: 800; }
+    .clock span { font-size: 13px; opacity: .75; }
+    .stage { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.2vh; padding: 8px 22px 18px; }
+    .prompt { font-size: clamp(24px, 4.2vw, 46px); font-weight: 900; letter-spacing: .03em; text-align: center; line-height: 1.05; }
+    .viewer { position: relative; width: min(92vw, 62vh, 640px); aspect-ratio: 1 / 1; border-radius: 26px; overflow: hidden; background: #021a17;
+      box-shadow: 0 0 0 4px rgba(255,255,255,.08), 0 30px 60px -30px rgba(0,0,0,.7); }
+    .viewer video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .viewer.mirror video { transform: scaleX(-1); }
+    .frame { position: absolute; inset: 14%; pointer-events: none; }
+    .frame i { position: absolute; width: 22%; height: 22%; border: 6px solid var(--accent); }
+    .frame i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; border-radius: 14px 0 0 0; }
+    .frame i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; border-radius: 0 14px 0 0; }
+    .frame i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 14px; }
+    .frame i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; border-radius: 0 0 14px 0; }
+    .scanline { position: absolute; left: 16%; right: 16%; height: 3px; background: linear-gradient(90deg, transparent, var(--accent), transparent); top: 50%; animation: sweep 2.4s ease-in-out infinite; opacity: .85; }
+    @keyframes sweep { 0%,100% { transform: translateY(-120px); } 50% { transform: translateY(120px); } }
+    .camerr { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; font-size: clamp(16px, 2.2vw, 22px); font-weight: 700; background: #2a0f0d; }
+    .camerr b { display: block; font-size: 1.35em; color: #ffb4ab; margin-bottom: 10px; }
+    .camerr button { margin-top: 18px; }
+    .status { display: flex; align-items: center; gap: 12px; font-size: clamp(20px, 3vw, 32px); font-weight: 900; letter-spacing: .06em; }
+    .dot { width: 18px; height: 18px; border-radius: 50%; background: #3ddc84; box-shadow: 0 0 0 6px rgba(61,220,132,.2); animation: pulse 1.6s infinite; }
+    .status.off .dot { background: #ff6b5e; box-shadow: 0 0 0 6px rgba(255,107,94,.2); }
+    .status.busy .dot { background: var(--accent); }
+    @keyframes pulse { 50% { box-shadow: 0 0 0 12px rgba(61,220,132,0); } }
+    .terminal { position: fixed; left: 14px; bottom: 10px; font-size: 12px; opacity: .55; letter-spacing: .08em; }
+    .gear { position: fixed; right: 8px; bottom: 6px; width: 44px; height: 44px; border: 0; background: transparent; color: #fff; opacity: .35; font-size: 22px; }
+
+    /* ---------- result overlay ---------- */
+    #result { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 4vh 6vw; z-index: 20; color: #fff; }
+    #result.ok { background: var(--ok); } #result.out { background: var(--out); } #result.warn { background: var(--warn); }
+    #result.bad { background: var(--bad); } #result.busy { background: rgba(8,48,44,.94); }
+    .ricon { width: clamp(90px, 15vh, 150px); height: clamp(90px, 15vh, 150px); border-radius: 50%; background: rgba(255,255,255,.18); display: grid; place-items: center;
+      font-size: clamp(56px, 10vh, 100px); font-weight: 900; margin-bottom: 2.4vh; }
+    .rtitle { font-size: clamp(30px, 6vw, 68px); font-weight: 900; letter-spacing: .03em; line-height: 1.05; }
+    .rname { font-size: clamp(28px, 5.4vw, 60px); font-weight: 800; margin-top: 3vh; }
+    .rrole { display: inline-block; margin-top: 1.6vh; padding: 6px 22px; border-radius: 999px; background: rgba(255,255,255,.2); font-size: clamp(18px, 2.8vw, 28px); font-weight: 900; letter-spacing: .14em; }
+    .rwhen { margin-top: 2.4vh; font-size: clamp(22px, 3.6vw, 40px); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .rwhen b { font-size: 1.5em; display: block; }
+    .rmsg { margin-top: 2.4vh; font-size: clamp(20px, 3vw, 32px); font-weight: 700; white-space: pre-line; line-height: 1.3; max-width: 900px; }
+    .spinner { width: 90px; height: 90px; border-radius: 50%; border: 9px solid rgba(255,255,255,.2); border-top-color: var(--accent); animation: spin .9s linear infinite; margin-bottom: 3vh; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---------- start / setup / settings ---------- */
+    .sheet { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(4,26,23,.92); }
+    .box { background: var(--paper); color: var(--ink); border-radius: 22px; padding: 28px; width: min(640px, 100%); max-height: 92vh; overflow: auto; text-align: center; }
+    .box h2 { margin: 0 0 8px; font-size: 28px; font-weight: 900; }
+    .box p { font-size: 18px; margin: 8px 0; color: #3b4d47; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 64px; padding: 0 34px; border: 0; border-radius: 16px; font: 900 22px var(--font);
+      letter-spacing: .06em; background: var(--brand); color: #fff; cursor: pointer; margin: 8px 4px 0; }
+    .btn.gold { background: var(--accent); color: #3a2600; }
+    .btn.light { background: #e9efed; color: var(--brand); }
+    .box textarea { width: 100%; min-height: 90px; font: 14px ui-monospace, Menlo, monospace; padding: 10px; border-radius: 12px; border: 2px solid #d7e0dd; }
+    .box .kv { text-align: left; font-size: 15px; background: #f3f6f5; border-radius: 12px; padding: 12px 14px; margin-top: 12px; word-break: break-all; }
+    .box .kv b { display: inline-block; min-width: 110px; }
+    .box select { font: 600 17px var(--font); padding: 10px; border-radius: 12px; border: 2px solid #d7e0dd; width: 100%; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="head" id="head">
+      <div class="mark">F&amp;M</div>
+      <div class="brand">FINGERS &amp; MORE<small>KITCHEN ATTENDANCE</small></div>
+      <div class="clock"><b id="clock">--:--</b><span id="date"></span></div>
+    </div>
+    <div class="stage">
+      <div class="prompt">SCAN YOUR EMPLOYEE CARD</div>
+      <div class="viewer" id="viewer">
+        <video id="video" playsinline muted autoplay></video>
+        <div class="frame"><i></i><i></i><i></i><i></i></div>
+        <div class="scanline" id="scanline"></div>
+        <div class="camerr hidden" id="camerr"><div><b id="camerrTitle">CAMERA NOT AVAILABLE</b><span id="camerrText"></span><br>
+          <button class="btn gold" id="btnRetryCam" type="button">TRY AGAIN</button></div></div>
+      </div>
+      <div class="status" id="status"><span class="dot"></span><span id="statusText">STARTING…</span></div>
+    </div>
+    <div class="terminal" id="terminalLabel"></div>
+    <button class="gear" id="btnGear" type="button" aria-label="Settings">&#9881;</button>
+  </div>
+
+  <div id="result" class="hidden" role="alert" aria-live="assertive">
+    <div class="ricon" id="rIcon"></div>
+    <div class="rtitle" id="rTitle"></div>
+    <div class="rname" id="rName"></div>
+    <div><span class="rrole" id="rRole"></span></div>
+    <div class="rwhen" id="rWhen"></div>
+    <div class="rmsg" id="rMsg"></div>
+  </div>
+
+  <!-- First screen: one tap unlocks sound, keeps the screen on and starts the camera -->
+  <div class="sheet" id="start">
+    <div class="box">
+      <div class="mark" style="margin:0 auto 14px;color:#b7791f;border-color:#f0b03c">F&amp;M</div>
+      <h2>KITCHEN ATTENDANCE</h2>
+      <p>Tap START to switch on the scanner.</p>
+      <button class="btn gold" id="btnStart" type="button">START</button>
+    </div>
+  </div>
+
+  <!-- Settings (gear button, bottom-right) -->
+  <div class="sheet hidden" id="settings">
+    <div class="box">
+      <h2>Tablet settings</h2>
+      <div class="kv" id="cfgView"></div>
+      <p style="margin-top:16px">Camera</p>
+      <select id="camSelect"></select>
+      <div>
+        <button class="btn" id="btnTest" type="button">TEST CONNECTION</button>
+        <button class="btn light" id="btnFull" type="button">FULL SCREEN</button>
+      </div>
+      <p style="margin-top:18px">New setup: scan the code from <b>Kitchen QR Management › Tablet setup</b> on the scanner screen, or paste the setup text:</p>
+      <textarea id="setupText" placeholder="FMKSETUP:{...}"></textarea>
+      <div>
+        <button class="btn light" id="btnSaveSetup" type="button">SAVE SETUP TEXT</button>
+        <button class="btn light" id="btnForget" type="button">REMOVE SETUP</button>
+        <button class="btn gold" id="btnClose" type="button">CLOSE</button>
+      </div>
+      <p id="settingsMsg" style="font-weight:700"></p>
+    </div>
+  </div>
+
+  <script src="jsQR.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
