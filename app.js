@@ -128,7 +128,7 @@
     }
     setStatus('STARTING CAMERA…', 'busy');
     var video = cfg.deviceId ? { deviceId: { exact: cfg.deviceId } } : { facingMode: cfg.facing || 'user' };
-    video.width = { ideal: 1280 }; video.height = { ideal: 720 };
+    video.width = { ideal: 1920 }; video.height = { ideal: 1080 };
     return navigator.mediaDevices.getUserMedia({ video: video, audio: false }).then(function (s) {
       stream = s;
       var v = $('video');
@@ -137,6 +137,10 @@
       var settings = track && track.getSettings ? track.getSettings() : {};
       $('viewer').classList.toggle('mirror', settings.facingMode ? settings.facingMode === 'user' : (cfg.facing || 'user') === 'user');
       track.addEventListener('ended', function () { setTimeout(startCamera, 1500); });   // camera dropped: recover
+      try {   // sharp picture: continuous auto-focus where the tablet supports it
+        var caps = track.getCapabilities ? track.getCapabilities() : {};
+        if (caps.focusMode && caps.focusMode.indexOf('continuous') >= 0) track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function () {});
+      } catch (e) { /* optional */ }
       return v.play().catch(function () { /* autoplay muted is allowed */ });
     }).then(function () {
       if (!stream) return;
@@ -209,18 +213,22 @@
     }, SCAN_EVERY_MS);
   }
 
+  var frameNo = 0;
   function decodeFrame(v) {
-    if (detector) {
+    frameNo++;
+    // built-in reader on 2 of 3 frames, jsQR on every 3rd frame (some tablets' built-in reader misses printed cards)
+    if (detector && frameNo % 3 !== 0) {
       return detector.detect(v).then(function (codes) { return codes && codes.length ? codes[0].rawValue : ''; })
         .catch(function () { detector = null; return ''; });   // fall back to jsQR
     }
-    var scale = Math.min(1, 720 / Math.max(v.videoWidth, v.videoHeight));
+    var big = frameNo % 2 === 0;   // alternate: fast (720) / sharp (1280) for small or far codes
+    var scale = Math.min(1, (big ? 1280 : 720) / Math.max(v.videoWidth, v.videoHeight));
     var w = Math.round(v.videoWidth * scale), h = Math.round(v.videoHeight * scale);
     if (canvas.width !== w) canvas.width = w;
     if (canvas.height !== h) canvas.height = h;
     ctx2d.drawImage(v, 0, 0, w, h);
     var img = ctx2d.getImageData(0, 0, w, h);
-    var res = window.jsQR ? window.jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' }) : null;
+    var res = window.jsQR ? window.jsQR(img.data, w, h, { inversionAttempts: big ? 'attemptBoth' : 'dontInvert' }) : null;
     return Promise.resolve(res ? res.data : '');
   }
 
